@@ -315,14 +315,18 @@
             logToTerminal(`<span class="text-blue-400">استقبال:</span>\n${text}`);
             showToast("تم استقبال بيانات جديدة");
 
-            // التحقق مما إذا كان الرد عبارة عن رابط/اسم ملف تم رفعه للسحابة
-            if (text.includes("FILE EXISTS ON CLOUD:")) {
-                const match = text.match(/FILE EXISTS ON CLOUD:\s*`([^`]+)`/);
-                if (match && match[1]) {
-                    const fileName = match[1];
-                    logToTerminal(`⏳ جاري سحب الملف المشفر من السحابة وفكه بالذاكرة: ${fileName}`);
-                    await fetchAndProcessFile(fileName);
-                }
+            // التقاط اسم الملف المشفر (الذي ينتهي بـ .enc وموجود بين علامتي ` `)
+            const match = text.match(/`([^`]+\.enc)`/);
+            
+            // التأكد من أن الرسالة تؤكد نجاح الرفع السحابي أو وجود الملف مسبقاً
+            const isUploadSuccess = text.includes("SUPABASE UPLOAD SUCCESSFUL") || 
+                                    text.includes("تمت أرشفة الملف") || 
+                                    text.includes("موجود مسبقاً");
+
+            if (match && match[1] && isUploadSuccess) {
+                const fileName = match[1];
+                logToTerminal(`⏳ جاري سحب الملف المشفر من السحابة وفكه بالذاكرة: ${fileName}`);
+                await fetchAndProcessFile(fileName);
             }
         }
 
